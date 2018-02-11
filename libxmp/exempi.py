@@ -1490,9 +1490,6 @@ def set_property_date(xmp, schema, name, the_date, option_bits=0):
                                               ctypes.POINTER(XmpDateTime),
                                               ctypes.c_uint32]
 
-    if the_date.tzinfo is not None:
-        the_date = the_date.astimezone(pytz.utc)
-
     xmp_date = XmpDateTime()
     xmp_date.year = the_date.year
     xmp_date.month = the_date.month
@@ -1500,10 +1497,21 @@ def set_property_date(xmp, schema, name, the_date, option_bits=0):
     xmp_date.hour = the_date.hour
     xmp_date.minute = the_date.minute
     xmp_date.second = the_date.second
-    xmp_date.tzsign = 0
-    xmp_date.tzhour = 0
-    xmp_date.tzminute = 0
-    xmp_date.nanosecond = 0
+    xmp_date.nanosecond = the_date.microsecond * 1000
+    utcsecs = the_date.utcoffset().total_seconds()
+    if utcsecs > 0:
+        xmp_date.tzsign = 1
+    elif utcsecs < 0:
+        xmp_date.tzsign = -1
+    else:
+        xmp_date.tzsign = 0
+
+    if utcsecs != 0:
+        xmp_date.tzhour = abs(int(utcsecs) // 3600)
+        xmp_date.tzminute = abs( (int(utcsecs) % 3600) // 60)
+    else:
+        xmp_date.tzhour = 0
+        xmp_date.tzminute = 0
 
     EXEMPI.xmp_set_property_date(xmp,
                                  ctypes.c_char_p(schema.encode('utf-8')),
